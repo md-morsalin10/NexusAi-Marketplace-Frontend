@@ -192,6 +192,7 @@ const HeroBanner = () => {
         {[...Array(22)].map((_, i) => (
           <div 
             key={i} 
+            suppressHydrationWarning
             className="absolute w-1 h-1 rounded-full bg-gradient-to-tr from-cyan-400 to-indigo-400" 
             style={{
               top: `${Math.random() * 100}%`,
