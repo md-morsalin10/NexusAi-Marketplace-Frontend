@@ -14,7 +14,7 @@ const Navbar = () => {
   ];
 
   const loggedInRoutes = [
-    { name: 'Explore', path: '/explore' },
+    { name: 'Home', path: '/' },
     { name: 'Marketplace', path: '/marketplace' },
     { name: 'Optimizer', path: '/items/add' },
     { name: 'Analytics', path: '/ai-dashboard' },
@@ -23,7 +23,6 @@ const Navbar = () => {
 
   const activeRoutes = isLoggedIn ? loggedInRoutes : loggedOutRoutes;
 
-  // ব্রাউজার উইন্ডো রিসাইজ হলে মোবাইল ড্রপডাউন অটোমেটিক ক্লোজ করার জন্য
   useEffect(() => {
     const handleResize = () => {
       if (window.innerWidth >= 768) {
