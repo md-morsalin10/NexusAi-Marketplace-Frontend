@@ -1,214 +1,438 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
+import { HiBars3, HiXMark, HiOutlineTrash } from 'react-icons/hi2';
+import { authClient } from '@/lib/auth-client';
+import toast from 'react-hot-toast';
+
 
 const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(true); 
-  const [activeTab, setActiveTab] = useState('Explore');
+    const [isOpen, setIsOpen] = useState(false);
+    const [showDropdown, setShowDropdown] = useState(false);
+    const [showCart, setShowCart] = useState(false);
+    const [cartItems, setCartItems] = useState([]);
+    const [checkingOut, setCheckingOut] = useState(false);
 
-  // প্রজেক্ট রিকোয়ারমেন্ট অনুযায়ী রাউটিং এলাইনমেন্ট
-  const loggedOutRoutes = [
-    { name: 'Explore', path: '/explore' },
-    { name: 'Marketplace', path: '/marketplace' },
-    { name: 'About', path: '/about' },
-  ];
+    const pathname = usePathname();
+    const router = useRouter();
+    const { data: session } = authClient.useSession();
 
-  const loggedInRoutes = [
-    { name: 'Home', path: '/' },
-    { name: 'Marketplace', path: '/marketplace' },
-    { name: 'Optimizer', path: '/items/add' },
-    { name: 'Analytics', path: '/ai-dashboard' },
-    { name: 'About', path: '/about' },
-  ];
+    const user = session?.user;
+    // console.log("Navbar session:", user);
 
-  const activeRoutes = isLoggedIn ? loggedInRoutes : loggedOutRoutes;
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsOpen(false);
-      }
+    const updateCartCount = () => {
+        if (typeof window !== "undefined") {
+            const items = JSON.parse(localStorage.getItem("gadgethub-cart") || "[]");
+            setCartItems(items);
+        }
     };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
-  return (
-    <nav className="sticky top-0 z-50 w-full border-b border-slate-800 bg-[#0F172A]/80 backdrop-blur-md transition-all duration-300">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          
-          {/* Left Segment: Logo & Links */}
-          <div className="flex items-center space-x-10">
-            {/* Brand Logo - Updated to GadgetHub */}
-            <div className="flex flex-shrink-0 items-center select-none">
-              <span className="text-xl font-bold tracking-tight text-white">
-                Gadget<span className="text-[#06B6D4]">Hub</span>
-              </span>
+    useEffect(() => {
+        updateCartCount();
+        window.addEventListener("cart-updated", updateCartCount);
+        return () => window.removeEventListener("cart-updated", updateCartCount);
+    }, []);
+
+    const handleSignOut = async () => {
+        try {
+            await authClient.signOut();
+            toast.success("Logged out successfully!");
+            setShowDropdown(false);
+            router.push("/login");
+            router.refresh();
+        } catch (error) {
+            console.error("Sign out error:", error);
+            toast.error("Failed to sign out");
+        }
+    };
+
+    const handleCheckout = async () => {
+        if (!user) {
+            toast.error("Please login to buy gadgets!");
+            router.push("/login");
+            setShowCart(false);
+            return;
+        }
+
+        setCheckingOut(true);
+        try {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/create-checkout-session`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    items: cartItems,
+                    email: user.email,
+                })
+            });
+            const data = await res.json();
+            if (data.url) {
+                localStorage.setItem("gadgethub-checkout-items", JSON.stringify(cartItems));
+                toast.success("Redirecting to checkout...");
+                window.location.href = data.url;
+            } else {
+                toast.error(data.error || "Failed to create checkout session");
+            }
+        } catch (error) {
+            console.error("Checkout error:", error);
+            toast.error("Checkout setup failed.");
+        } finally {
+            setCheckingOut(false);
+        }
+    };
+
+    // ড্যাশবোর্ডে নেভবার হাইড করার লজিক
+    if (pathname.includes("dashboard")) {
+        return null;
+    }
+
+    // নতুন প্রজেক্টের ন্যাভিগেশন লিংকসমূহ
+    const navLinks = [
+        { label: "Home", href: "/" },
+        { label: "All Products", href: "/all-products" },
+        ...(user ? [{ label: "Dashboard", href: "/dashboard" }] : []),
+        { label: "Optimizer", href: "/optimizer" },
+        { label: "Analytics", href: "/analytics" },
+        { label: "About", href: "/about" },
+    ];
+
+    return (
+        <nav className="bg-[#030712] text-gray-300 border-b border-cyan-950/40 sticky top-0 z-50 backdrop-blur-md bg-opacity-90 transition-all duration-300">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div className="flex items-center justify-between h-20">
+
+                    {/* Left Side: Brand Logo */}
+                    <div className="flex-shrink-0">
+                        <Link href="/" className="text-2xl font-bold tracking-wide text-white">
+                            Gadget<span className="text-cyan-400">Hub</span>
+                        </Link>
+                    </div>
+
+                    {/* Center: Desktop Navigation Links */}
+                    <div className="hidden md:flex space-x-8 items-center">
+                        {navLinks.map((link) => {
+                            const isActive = pathname === link.href;
+                            return (
+                                <Link
+                                    key={link.label}
+                                    href={link.href}
+                                    className={`relative text-sm font-semibold tracking-medium pb-2 transition-colors duration-200 hover:text-cyan-400 ${isActive ? "text-cyan-400" : "text-gray-400"
+                                        }`}
+                                >
+                                    {link.label}
+                                    {/* Active Route Indicator Underline */}
+                                    {isActive && (
+                                        <motion.span
+                                            layoutId="activeUnderline"
+                                            className="absolute bottom-0 left-0 w-full h-[2px] bg-cyan-400 rounded-full"
+                                        />
+                                    )}
+                                </Link>
+                            );
+                        })}
+                    </div>
+                    {/* Cart & Profile Area */}
+                    <div className="flex items-center space-x-4">
+                        {/* Cart Toggle Icon */}
+                        <button
+                            onClick={() => setShowCart(true)}
+                            className="relative p-2 rounded-xl border border-cyan-950/45 bg-[#0b0f19]/35 hover:bg-cyan-950/20 text-gray-400 hover:text-cyan-400 transition-all focus:outline-none cursor-pointer"
+                        >
+                            <svg className="w-5.5 h-5.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            {cartItems.length > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-cyan-500 text-[#030712] text-[9px] font-black w-5 h-5 rounded-full flex items-center justify-center border border-[#030712] shadow-lg animate-pulse">
+                                    {cartItems.length}
+                                </span>
+                            )}
+                        </button>
+
+                        {user ? (
+                            <div className="flex items-center relative">
+                                <button 
+                                    onClick={() => setShowDropdown(!showDropdown)}
+                                    className="w-10 h-10 rounded-full cursor-pointer ring-2 ring-cyan-500/30 hover:ring-cyan-400 transition-all p-[2px] overflow-hidden bg-gray-900 min-w-[40px] min-h-[40px] flex items-center justify-center focus:outline-none"
+                                >
+                                    {user?.image ? (
+                                        <img
+                                            src={user.image}
+                                            alt={user?.name || "User"}
+                                            className="w-full h-full object-cover rounded-full"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-cyan-950 text-cyan-400 font-bold text-sm rounded-full">
+                                            {user?.name ? user.name.charAt(0).toUpperCase() : "U"}
+                                        </div>
+                                    )}
+                                </button>
+
+                                <AnimatePresence>
+                                    {showDropdown && (
+                                        <motion.div
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: 10 }}
+                                            className="absolute right-0 top-12 w-56 rounded-2xl bg-[#0b0f19] border border-cyan-950/65 shadow-2xl p-4 z-50 space-y-3"
+                                        >
+                                            <div className="border-b border-cyan-950/40 pb-2">
+                                                <p className="text-sm font-semibold text-white truncate">{user?.name}</p>
+                                                <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                                                <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-cyan-950/60 text-cyan-400 font-bold capitalize">
+                                                    {user?.role || "user"}
+                                                </span>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Link
+                                                    href="/dashboard"
+                                                    onClick={() => setShowDropdown(false)}
+                                                    className="block text-sm text-gray-400 hover:text-cyan-400 py-1.5 transition-colors"
+                                                >
+                                                    Dashboard
+                                                </Link>
+                                                <button
+                                                    onClick={handleSignOut}
+                                                    className="w-full text-left text-sm text-red-400 hover:text-red-300 py-1.5 transition-colors focus:outline-none"
+                                                >
+                                                    Logout
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        ) : (
+                            <div className="hidden md:flex items-center space-x-6">
+                                <Link
+                                    href="/login"
+                                    className="text-sm font-semibold text-gray-400 hover:text-cyan-400 transition-colors duration-200"
+                                >
+                                    Login
+                                </Link>
+                                <motion.a
+                                    href="/register"
+                                    className="bg-cyan-500 text-[#030712] px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-cyan-950/20 hover:bg-cyan-400 transition-all duration-200"
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
+                                >
+                                    Get Started
+                                </motion.a>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Mobile Menu Button */}
+                    <div className="md:hidden flex items-center">
+                        <button
+                            onClick={() => setIsOpen(!isOpen)}
+                            type="button"
+                            className="inline-flex items-center justify-center p-2 rounded-lg text-gray-400 hover:text-white hover:bg-cyan-950/20 border border-transparent hover:border-cyan-950/40 focus:outline-none transition-colors duration-200"
+                            aria-controls="mobile-menu"
+                            aria-expanded={isOpen}
+                        >
+                            <span className="sr-only">Open main menu</span>
+                            {isOpen ? (
+                                <HiXMark className="block w-6 h-6" />
+                            ) : (
+                                <HiBars3 className="block w-6 h-6" />
+                            )}
+                        </button>
+                    </div>
+
+                </div>
             </div>
 
-            {/* Desktop Link Layout */}
-            <div className="hidden md:flex items-center space-x-6 h-16">
-              {activeRoutes.map((route, index) => {
-                const isActive = activeTab === route.name;
-                return (
-                  <a
-                    key={index}
-                    href={route.path}
-                    onClick={() => {
-                      setActiveTab(route.name);
-                    }}
-                    className={`relative text-sm font-medium transition-colors duration-200 h-full flex items-center px-1 ${
-                      isActive ? 'text-[#06B6D4]' : 'text-slate-400 hover:text-white'
+            {/* Mobile Dropdown Menu */}
+            <div
+                className={`md:hidden transition-all duration-300 ease-in-out ${isOpen ? "max-h-screen opacity-100 visible" : "max-h-0 opacity-0 invisible overflow-hidden"
                     }`}
-                  >
-                    {route.name}
-                    {/* Active Route Bottom Border Glow */}
-                    {isActive && (
-                      <span className="absolute bottom-0 left-0 h-[2px] w-full bg-gradient-to-r from-[#06B6D4] to-cyan-400 shadow-[0_-2px_10px_rgba(6,182,212,0.5)]" />
-                    )}
-                  </a>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Right Segment: UI Controls & Actions */}
-          <div className="hidden md:flex items-center space-x-5">
-            {/* Embedded Search Bar Layout */}
-            <div className="relative group">
-              <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <svg className="h-4 w-4 text-slate-500 group-focus-within:text-[#06B6D4] transition-colors" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </span>
-              <input
-                type="text"
-                placeholder="Search tech..."
-                className="w-52 rounded-full bg-slate-900/60 border border-slate-800 py-1.5 pl-9 pr-4 text-xs text-slate-200 placeholder-slate-500 outline-none focus:w-60 focus:border-[#06B6D4] focus:ring-1 focus:ring-[#06B6D4]/30 transition-all duration-300"
-              />
-            </div>
-
-            {/* Notification Control Indicator */}
-            <button className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-900 transition-all focus:outline-none relative">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
-              </svg>
-              <span className="absolute top-1 right-1.5 w-2 h-2 rounded-full bg-rose-500" />
-            </button>
-
-            {/* Global E-Commerce Basket Indicator */}
-            <button className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-900 transition-all focus:outline-none">
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-              </svg>
-            </button>
-
-            {/* Profile Node Canvas */}
-            {isLoggedIn ? (
-              <div className="flex items-center">
-                <div className="h-8 w-8 rounded-full bg-slate-800 p-[1px] ring-2 ring-purple-600/40 hover:ring-[#06B6D4] transition-all cursor-pointer overflow-hidden shadow-md">
-                  <img 
-                    src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80" 
-                    alt="User account profile" 
-                    className="h-full w-full object-cover rounded-full"
-                  />
-                </div>
-              </div>
-            ) : (
-              <a
-                href="/login"
-                className="rounded-full bg-[#06B6D4] px-4 py-1.5 text-xs font-semibold text-slate-950 transition-all duration-200 hover:bg-[#06B6D4]/90 shadow-md shadow-[#06B6D4]/15"
-              >
-                Login
-              </a>
-            )}
-          </div>
-
-          {/* Responsive Hamburger UI Switch */}
-          <div className="flex md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              type="button"
-              className="inline-flex items-center justify-center rounded-xl p-2 text-slate-400 hover:bg-slate-900 hover:text-white transition-all focus:outline-none"
+                id="mobile-menu"
             >
-              <span className="sr-only">Toggle Main Menu</span>
-              {isOpen ? (
-                <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              ) : (
-                <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-      </div>
+                <div className="px-2 pt-2 pb-6 space-y-2 bg-[#0b0f19]/95 border-t border-cyan-950/40 backdrop-blur-lg shadow-2xl">
+                    {navLinks.map((link) => {
+                        const isActive = pathname === link.href;
+                        return (
+                            <Link
+                                key={link.label}
+                                href={link.href}
+                                onClick={() => setIsOpen(false)}
+                                className={`block px-4 py-3 rounded-xl text-base font-medium transition-colors duration-150 ${isActive
+                                    ? "bg-cyan-950/40 text-cyan-400 font-semibold border border-cyan-500/20"
+                                    : "text-gray-400 hover:bg-cyan-950/20 hover:text-white"
+                                    }`}
+                            >
+                                {link.label}
+                            </Link>
+                        );
+                    })}
 
-      {/* Mobile Component Submenu Layer */}
-      <div className={`${isOpen ? 'block' : 'hidden'} md:hidden border-t border-slate-800 bg-[#0F172A]`}>
-        <div className="space-y-1 px-3 pb-4 pt-3">
-          {activeRoutes.map((route, index) => {
-            const isTabActive = activeTab === route.name;
-            return (
-              <a
-                key={index}
-                href={route.path}
-                onClick={() => {
-                  setActiveTab(route.name);
-                  setIsOpen(false);
-                }}
-                className={`block rounded-xl px-3 py-2.5 text-base font-medium transition-all ${
-                  isTabActive 
-                    ? 'bg-slate-900 text-[#06B6D4] font-semibold' 
-                    : 'text-slate-400 hover:bg-slate-900/60 hover:text-white'
-                }`}
-              >
-                {route.name}
-              </a>
-            );
-          })}
-          
-          {/* Mobile Menu Footer */}
-          <div className="mt-4 border-t border-slate-800 pt-4 px-3">
-            {isLoggedIn ? (
-              <div className="flex items-center justify-between bg-slate-900/40 p-2 rounded-xl border border-slate-800/40">
-                <div className="flex items-center space-x-3">
-                  <img 
-                    src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=150&q=80" 
-                    alt="User signature" 
-                    className="h-8 w-8 rounded-full object-cover ring-2 ring-purple-600/30"
-                  />
-                  <span className="text-sm font-semibold text-slate-200">Morsalin</span>
+                    {/* Mobile Auth Links Splitter */}
+                    <div className="pt-4 mt-4 border-t border-cyan-950/40 px-4 space-y-3">
+                        {user ? (
+                            <>
+                                <div className="flex items-center gap-3 pb-2">
+                                    <div className="w-10 h-10 rounded-full overflow-hidden bg-cyan-950 flex items-center justify-center text-cyan-400 font-bold min-w-[40px] min-h-[40px]">
+                                        {user.image ? (
+                                            <img src={user.image} alt={user.name} className="w-full h-full object-cover" />
+                                        ) : (
+                                            user.name ? user.name.charAt(0).toUpperCase() : "U"
+                                        )}
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-white truncate max-w-[150px]">{user.name}</p>
+                                        <span className="text-xs text-cyan-400 capitalize">{user.role || "user"}</span>
+                                    </div>
+                                </div>
+                                <Link
+                                    href="/dashboard"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block text-center bg-cyan-950/40 border border-cyan-500/20 text-cyan-400 px-4 py-2.5 rounded-xl text-base font-bold"
+                                >
+                                    Go to Dashboard
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        setIsOpen(false);
+                                        handleSignOut();
+                                    }}
+                                    className="w-full text-center bg-red-950/30 border border-red-500/20 text-red-400 px-4 py-2.5 rounded-xl text-base font-bold focus:outline-none"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                <Link
+                                    href="/login"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block text-center text-base font-medium text-gray-400 hover:text-white py-2"
+                                >
+                                    Login
+                                </Link>
+                                <Link
+                                    href="/register"
+                                    onClick={() => setIsOpen(false)}
+                                    className="block text-center bg-cyan-500 text-[#030712] px-4 py-3 rounded-xl text-base font-bold shadow-md"
+                                >
+                                    Get Started
+                                </Link>
+                            </>
+                        )}
+                    </div>
                 </div>
-                <div className="flex space-x-2 text-slate-400">
-                  <button className="p-1.5 hover:text-white transition-colors">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                    </svg>
-                  </button>
-                  <button className="p-1.5 hover:text-white transition-colors">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <a
-                href="/login"
-                className="block w-full text-center rounded-xl bg-[#06B6D4] py-2.5 text-sm font-semibold text-slate-950 shadow-md shadow-[#06B6D4]/15"
-              >
-                Login
-              </a>
-            )}
-          </div>
-        </div>
-      </div>
-    </nav>
-  );
+            </div>
+            {/* Cart Drawer */}
+            <AnimatePresence>
+                {showCart && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end animate-fade-in"
+                        onClick={() => setShowCart(false)}
+                    >
+                        <motion.div
+                            initial={{ x: "100%" }}
+                            animate={{ x: 0 }}
+                            exit={{ x: "100%" }}
+                            transition={{ type: "tween", duration: 0.3 }}
+                            className="w-full max-w-md bg-[#0b0f19] border-l border-cyan-950/70 h-full p-6 shadow-2xl flex flex-col justify-between"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {/* Drawer Header */}
+                            <div className="flex justify-between items-center border-b border-cyan-950/40 pb-4">
+                                <div className="flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    </svg>
+                                    <h3 className="text-base font-bold text-white uppercase tracking-wider">Your Shopping Cart</h3>
+                                </div>
+                                <button 
+                                    onClick={() => setShowCart(false)}
+                                    className="p-1 text-gray-500 hover:text-white rounded-lg border border-transparent hover:border-cyan-950/30 transition-all focus:outline-none cursor-pointer"
+                                >
+                                    <HiXMark className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            {/* Drawer Items list */}
+                            <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+                                {cartItems.length === 0 ? (
+                                    <div className="h-64 flex flex-col items-center justify-center text-gray-600 gap-2">
+                                        <svg className="w-12 h-12 text-cyan-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                        </svg>
+                                        <span className="text-xs font-semibold">Your cart is empty</span>
+                                    </div>
+                                ) : (
+                                    cartItems.map((item, index) => (
+                                        <div key={item._id + "-" + index} className="flex items-center gap-3 p-3 bg-[#030712]/50 border border-cyan-950/30 rounded-xl relative group">
+                                            <div className="w-14 h-14 rounded-lg overflow-hidden bg-cyan-950/30 shrink-0">
+                                                <img src={item.image || "https://placehold.co/80"} alt={item.name} className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="flex-1 overflow-hidden">
+                                                <h4 className="text-xs font-bold text-white truncate">{item.name}</h4>
+                                                <p className="text-[10px] text-gray-500 capitalize">{item.category}</p>
+                                                <span className="text-xs font-bold text-cyan-400 block mt-1">${item.price}</span>
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    const updated = [...cartItems];
+                                                    updated.splice(index, 1);
+                                                    localStorage.setItem("gadgethub-cart", JSON.stringify(updated));
+                                                    setCartItems(updated);
+                                                    window.dispatchEvent(new Event("cart-updated"));
+                                                    toast.success("Removed from cart");
+                                                }}
+                                                className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all focus:outline-none cursor-pointer"
+                                            >
+                                                <HiOutlineTrash className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Drawer Footer */}
+                            {cartItems.length > 0 && (
+                                <div className="border-t border-cyan-950/40 pt-4 space-y-4">
+                                    <div className="flex justify-between items-center text-sm font-bold text-white">
+                                        <span>Total Amount:</span>
+                                        <span className="text-cyan-400 text-lg font-black">
+                                            ${cartItems.reduce((acc, curr) => acc + (curr.price || 0), 0).toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={() => {
+                                                localStorage.removeItem("gadgethub-cart");
+                                                setCartItems([]);
+                                                window.dispatchEvent(new Event("cart-updated"));
+                                                toast.success("Cart cleared");
+                                            }}
+                                            className="py-2.5 rounded-xl border border-cyan-950 text-xs font-bold text-gray-400 hover:text-white hover:bg-cyan-950/20 transition-all text-center cursor-pointer"
+                                        >
+                                            Clear Cart
+                                        </button>
+                                        <button
+                                            onClick={handleCheckout}
+                                            disabled={checkingOut}
+                                            className={`py-2.5 rounded-xl bg-cyan-500 text-[#030712] text-xs font-bold hover:bg-cyan-400 transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)] flex items-center justify-center cursor-pointer ${
+                                                checkingOut ? 'opacity-60 cursor-not-allowed' : ''
+                                            }`}
+                                        >
+                                            {checkingOut ? "Processing..." : "Checkout Session"}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </nav>
+    );
 };
 
 export default Navbar;
