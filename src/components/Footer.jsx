@@ -2,9 +2,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { FiGlobe, FiShare2 } from 'react-icons/fi';
+import { usePathname } from 'next/navigation';
 
 const Footer = () => {
     const currentYear = new Date().getFullYear();
+
+    const pathname = usePathname();
+    
+    if (pathname.includes("dashboard")) {
+        return null;
+    }
 
     const footerLinks = {
         platform: [
@@ -32,10 +39,10 @@ const Footer = () => {
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-cyan-500/5 blur-[100px] pointer-events-none rounded-full" />
 
             <div className="max-w-7xl mx-auto relative z-10">
-                
+
                 {/* মেইন লিংক কন্টেইনার (ড্যাশড বর্ডার রিমুভড, ক্লিন গ্লাস কার্ড লুক) */}
                 <div className="bg-[#0b0f19]/40 rounded-2xl p-8 sm:p-10 grid grid-cols-1 md:grid-cols-12 gap-10 md:gap-8">
-                    
+
                     {/* ব্র্যান্ড ডেসক্রিপশন */}
                     <div className="md:col-span-4 flex flex-col justify-between">
                         <div>
@@ -46,10 +53,10 @@ const Footer = () => {
                                 The intelligence layer for hardware commerce. Revolutionizing the way the world trades technology.
                             </p>
                         </div>
-                        
+
                         {/* সোশ্যাল আইকন সমুহ */}
                         <div className="flex items-center gap-3 mt-8">
-                            <motion.a 
+                            <motion.a
                                 href="#globe"
                                 className="p-2.5 rounded-full bg-[#030712]/80 border border-cyan-950/60 text-gray-400 hover:text-cyan-400 hover:border-cyan-400/50 transition-colors cursor-pointer"
                                 whileHover={{ scale: 1.05 }}
@@ -57,7 +64,7 @@ const Footer = () => {
                             >
                                 <FiGlobe className="w-4 h-4" />
                             </motion.a>
-                            <motion.a 
+                            <motion.a
                                 href="#share"
                                 className="p-2.5 rounded-full bg-[#030712]/80 border border-cyan-950/60 text-gray-400 hover:text-cyan-400 hover:border-cyan-400/50 transition-colors cursor-pointer"
                                 whileHover={{ scale: 1.05 }}

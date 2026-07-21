@@ -43,22 +43,26 @@ export default function BuyerDashboard() {
     const [profileImgPreview, setProfileImgPreview] = useState(null);
     const [updatingProfile, setUpdatingProfile] = useState(false);
 
-    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const API = process.env.NEXT_PUBLIC_API_URL;
 
     const fetchOrders = useCallback(async () => {
         if (!user?.id && !user?.email) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API}/api/orders/buyer/${encodeURIComponent(user.id || user.email)}`);
+            const query = new URLSearchParams();
+            if (user.id) query.append('buyerId', user.id);
+            if (user.email) query.append('buyerEmail', user.email);
+            
+            const res = await fetch(`${API}/api/payment?${query.toString()}`);
             const data = await res.json();
-            setOrders(Array.isArray(data) ? data : []);
+            setOrders(Array.isArray(data) ? data : (data.payments || []));
         } catch (err) {
             console.error(err);
             toast.error("Failed to load orders");
         } finally {
             setLoading(false);
         }
-    }, [user?.email]);
+    }, [user?.id, user?.email]);
 
     // Handle Stripe success redirect
     useEffect(() => {
@@ -161,8 +165,8 @@ export default function BuyerDashboard() {
         finally { setUpdatingProfile(false); }
     };
 
-    const totalSpent = orders.reduce((acc, o) => acc + (o.totalAmount || o.amount || 0), 0);
-    const totalItems = orders.reduce((acc, o) => acc + (o.items?.length || 0), 0);
+    const totalSpent = orders.reduce((acc, o) => acc + Number(o.price || o.totalAmount || o.amount || 0), 0);
+    const totalItems = orders.length;
 
     const StatCard = ({ label, value, icon: Icon, color }) => (
         <div className={`bg-[#0b0f19]/60 border rounded-2xl p-5 relative overflow-hidden ${color.border}`}>
@@ -359,51 +363,25 @@ export default function BuyerDashboard() {
                                     ) : (
                                         <div className="space-y-4">
                                             {orders.map((order, orderIdx) => (
-                                                <motion.div key={order._id} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: orderIdx * 0.04 }}
+                                                <motion.div key={order._id || orderIdx} layout initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: orderIdx * 0.04 }}
                                                     className="bg-[#0b0f19]/60 border border-blue-950/40 rounded-2xl overflow-hidden hover:border-blue-900/50 transition-all">
-                                                    {/* Order header */}
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 border-b border-blue-950/30 bg-blue-950/10">
-                                                        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5">
-                                                            <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                                                                <HiOutlineCalendar className="w-3.5 h-3.5" />
-                                                                <span>{order.createdAt ? new Date(order.createdAt).toLocaleString() : 'N/A'}</span>
+                                                    
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 bg-[#030712]/30">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-blue-950/50 flex-shrink-0">
+                                                                {order.image || order.items?.[0]?.images?.[0]
+                                                                    ? <img src={order.image || order.items?.[0]?.images?.[0]} alt={order.title || order.items?.[0]?.title} className="w-full h-full object-cover" />
+                                                                    : <div className="w-full h-full flex items-center justify-center text-blue-800"><HiOutlineShoppingBag className="w-6 h-6" /></div>}
                                                             </div>
-                                                            {(order.stripePaymentId || order.paymentId) && !order.isMock && (
-                                                                <div className="flex items-center gap-1.5 text-[10px] text-gray-600 font-mono">
-                                                                    <HiOutlineCheckBadge className="w-3.5 h-3.5 text-emerald-600" />
-                                                                    <span className="truncate max-w-[160px]">{order.stripePaymentId || order.paymentId}</span>
-                                                                </div>
-                                                            )}
-                                                            {order.isMock && (
-                                                                <span className="text-[10px] font-bold text-amber-600 bg-amber-950/20 border border-amber-900/30 px-2 py-0.5 rounded-full">Test Order</span>
-                                                            )}
+                                                            <div>
+                                                                <h4 className="text-sm font-bold text-white">{order.title || order.items?.[0]?.title || 'Product'}</h4>
+                                                                <p className="text-[10px] text-gray-500 mt-1">Sold by: <span className="text-gray-400 font-semibold">{order.sellerName || 'Unknown Seller'}</span></p>
+                                                                <p className="text-[10px] text-gray-500 mt-0.5">Purchased: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}</p>
+                                                            </div>
                                                         </div>
-                                                        <div className="flex items-center gap-3 flex-shrink-0">
-                                                            <span className="text-base font-extrabold text-emerald-400">${(order.totalAmount || order.amount || 0).toFixed(2)}</span>
+                                                        <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 mt-3 sm:mt-0 flex-shrink-0">
+                                                            <span className="text-base font-extrabold text-emerald-400">${Number(order.price || order.totalAmount || 0).toFixed(2)}</span>
                                                             <StatusBadge status={order.status || 'completed'} size="xs" />
-                                                        </div>
-                                                    </div>
-
-                                                    {/* Items */}
-                                                    <div className="p-5">
-                                                        <p className="text-[10px] font-extrabold text-gray-600 uppercase tracking-widest mb-3">
-                                                            {order.items?.length || 0} item{(order.items?.length || 0) !== 1 ? 's' : ''} in this order
-                                                        </p>
-                                                        <div className="space-y-3">
-                                                            {(order.items || []).map((item, i) => (
-                                                                <div key={i} className="flex items-center gap-4 p-3 bg-[#030712]/30 rounded-xl border border-blue-950/20">
-                                                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-blue-950/50 flex-shrink-0">
-                                                                        {item.images?.[0] || item.image
-                                                                            ? <img src={item.images?.[0] || item.image} alt={item.title || item.name} className="w-full h-full object-cover" />
-                                                                            : <div className="w-full h-full flex items-center justify-center text-blue-800"><HiOutlineTag className="w-5 h-5" /></div>}
-                                                                    </div>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <p className="text-sm font-bold text-white truncate">{item.title || item.name || 'Product'}</p>
-                                                                        <p className="text-[10px] text-gray-500 capitalize mt-0.5">{item.category || ''}</p>
-                                                                    </div>
-                                                                    <p className="text-sm font-bold text-cyan-400 flex-shrink-0">${(item.price || 0).toFixed(2)}</p>
-                                                                </div>
-                                                            ))}
                                                         </div>
                                                     </div>
                                                 </motion.div>

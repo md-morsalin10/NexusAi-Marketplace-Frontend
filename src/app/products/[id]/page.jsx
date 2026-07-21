@@ -82,7 +82,7 @@ export default function ProductDetailPage() {
             setLoading(true);
             try {
                 const res = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/products/${id}`
+                    `${process.env.NEXT_PUBLIC_API_URL}/api/products/${id}`
                 );
                 if (!res.ok) { setNotFound(true); return; }
                 const data = await res.json();

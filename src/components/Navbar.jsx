@@ -58,7 +58,7 @@ const Navbar = () => {
 
         setCheckingOut(true);
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/create-checkout-session`, {
+            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/create-checkout-session`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -105,7 +105,7 @@ const Navbar = () => {
                     {/* Left Side: Brand Logo */}
                     <div className="flex-shrink-0">
                         <Link href="/" className="text-2xl font-bold tracking-wide text-white">
-                            Gadget<span className="text-cyan-400">Hub</span>
+                            Nexus<span className="text-cyan-400">Ai</span>
                         </Link>
                     </div>
 
@@ -325,23 +325,24 @@ const Navbar = () => {
             {/* Cart Drawer */}
             <AnimatePresence>
                 {showCart && (
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex justify-end animate-fade-in"
-                        onClick={() => setShowCart(false)}
-                    >
+                    <>
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+                            onClick={() => setShowCart(false)}
+                        />
                         <motion.div
                             initial={{ x: "100%" }}
                             animate={{ x: 0 }}
                             exit={{ x: "100%" }}
                             transition={{ type: "tween", duration: 0.3 }}
-                            className="w-full max-w-md bg-[#0b0f19] border-l border-cyan-950/70 h-full p-6 shadow-2xl flex flex-col justify-between"
+                            className="fixed top-0 right-0 h-full w-full max-w-md z-50 bg-[#0B0F17] border-l border-slate-800 flex flex-col shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                         >
                             {/* Drawer Header */}
-                            <div className="flex justify-between items-center border-b border-cyan-950/40 pb-4">
+                            <div className="flex justify-between items-center border-b border-slate-800 p-4">
                                 <div className="flex items-center gap-2">
                                     <svg className="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -350,45 +351,52 @@ const Navbar = () => {
                                 </div>
                                 <button 
                                     onClick={() => setShowCart(false)}
-                                    className="p-1 text-gray-500 hover:text-white rounded-lg border border-transparent hover:border-cyan-950/30 transition-all focus:outline-none cursor-pointer"
+                                    className="p-1 text-gray-500 hover:text-white rounded-lg transition-all focus:outline-none cursor-pointer"
                                 >
                                     <HiXMark className="w-6 h-6" />
                                 </button>
                             </div>
 
                             {/* Drawer Items list */}
-                            <div className="flex-1 overflow-y-auto py-4 space-y-4 pr-1">
+                            <div className="flex-1 overflow-y-auto max-h-[calc(100vh-220px)] space-y-4 p-4">
                                 {cartItems.length === 0 ? (
-                                    <div className="h-64 flex flex-col items-center justify-center text-gray-600 gap-2">
-                                        <svg className="w-12 h-12 text-cyan-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div className="h-full min-h-[200px] flex flex-col items-center justify-center text-gray-600 gap-3">
+                                        <svg className="w-12 h-12 text-slate-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                                         </svg>
-                                        <span className="text-xs font-semibold">Your cart is empty</span>
+                                        <span className="text-sm font-semibold">Your cart is empty</span>
                                     </div>
                                 ) : (
                                     cartItems.map((item, index) => (
-                                        <div key={item._id + "-" + index} className="flex items-center gap-3 p-3 bg-[#030712]/50 border border-cyan-950/30 rounded-xl relative group">
-                                            <div className="w-14 h-14 rounded-lg overflow-hidden bg-cyan-950/30 shrink-0">
+                                        <div key={item._id + "-" + index} className="flex items-center gap-3 p-3 bg-slate-900/50 border border-slate-800 rounded-xl">
+                                            <div className="w-16 h-16 rounded overflow-hidden bg-slate-800 shrink-0">
                                                 <img src={item.image || "https://placehold.co/80"} alt={item.name} className="w-full h-full object-cover" />
                                             </div>
                                             <div className="flex-1 overflow-hidden">
-                                                <h4 className="text-xs font-bold text-white truncate">{item.name}</h4>
-                                                <p className="text-[10px] text-gray-500 capitalize">{item.category}</p>
-                                                <span className="text-xs font-bold text-cyan-400 block mt-1">${item.price}</span>
+                                                <h4 className="text-sm font-bold text-white truncate">{item.name || item.title || 'Product'}</h4>
+                                                <p className="text-xs text-gray-500 capitalize">{item.category || 'Category'}</p>
+                                                <span className="text-sm font-bold text-cyan-400 block mt-1">${Number(item.price || 0).toFixed(2)}</span>
                                             </div>
-                                            <button 
-                                                onClick={() => {
-                                                    const updated = [...cartItems];
-                                                    updated.splice(index, 1);
-                                                    localStorage.setItem("gadgethub-cart", JSON.stringify(updated));
-                                                    setCartItems(updated);
-                                                    window.dispatchEvent(new Event("cart-updated"));
-                                                    toast.success("Removed from cart");
-                                                }}
-                                                className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all focus:outline-none cursor-pointer"
-                                            >
-                                                <HiOutlineTrash className="w-4 h-4" />
-                                            </button>
+                                            <div className="flex flex-col items-end gap-2 shrink-0">
+                                                <button 
+                                                    onClick={() => {
+                                                        const updated = [...cartItems];
+                                                        updated.splice(index, 1);
+                                                        localStorage.setItem("gadgethub-cart", JSON.stringify(updated));
+                                                        setCartItems(updated);
+                                                        window.dispatchEvent(new Event("cart-updated"));
+                                                        toast.success("Removed from cart");
+                                                    }}
+                                                    className="p-1 rounded text-gray-500 hover:text-red-400 hover:bg-red-950/20 transition-all focus:outline-none cursor-pointer"
+                                                >
+                                                    <HiOutlineTrash className="w-5 h-5" />
+                                                </button>
+                                                <div className="flex items-center gap-2 bg-slate-800/80 rounded px-2 py-0.5 border border-slate-700/50">
+                                                    <button className="text-gray-400 hover:text-white text-xs cursor-not-allowed" title="Quantity limits active">-</button>
+                                                    <span className="text-xs text-white font-medium">1</span>
+                                                    <button className="text-gray-400 hover:text-white text-xs cursor-not-allowed" title="Quantity limits active">+</button>
+                                                </div>
+                                            </div>
                                         </div>
                                     ))
                                 )}
@@ -396,8 +404,8 @@ const Navbar = () => {
 
                             {/* Drawer Footer */}
                             {cartItems.length > 0 && (
-                                <div className="border-t border-cyan-950/40 pt-4 space-y-4">
-                                    <div className="flex justify-between items-center text-sm font-bold text-white">
+                                <div className="p-4 border-t border-slate-800 mt-auto bg-[#0B0F17]">
+                                    <div className="flex justify-between items-center text-sm font-bold text-white mb-4">
                                         <span>Total Amount:</span>
                                         <span className="text-cyan-400 text-lg font-black">
                                             ${cartItems.reduce((acc, curr) => acc + (curr.price || 0), 0).toFixed(2)}
@@ -411,7 +419,7 @@ const Navbar = () => {
                                                 window.dispatchEvent(new Event("cart-updated"));
                                                 toast.success("Cart cleared");
                                             }}
-                                            className="py-2.5 rounded-xl border border-cyan-950 text-xs font-bold text-gray-400 hover:text-white hover:bg-cyan-950/20 transition-all text-center cursor-pointer"
+                                            className="py-2.5 rounded-xl border border-slate-800 text-xs font-bold text-gray-400 hover:text-white hover:bg-slate-800 transition-all text-center cursor-pointer"
                                         >
                                             Clear Cart
                                         </button>
@@ -428,7 +436,7 @@ const Navbar = () => {
                                 </div>
                             )}
                         </motion.div>
-                    </motion.div>
+                    </>
                 )}
             </AnimatePresence>
         </nav>

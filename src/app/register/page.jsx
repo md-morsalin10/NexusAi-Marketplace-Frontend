@@ -111,7 +111,7 @@ const RegisterPage = () => {
                             Create Account
                         </h2>
                         <p className="text-sm text-gray-400">
-                            Join Gadget<span className="text-cyan-400">Hub</span> to optimize your tech experience
+                            Join Nexus<span className="text-cyan-400">Ai</span> to optimize your tech experience
                         </p>
                     </div>
 

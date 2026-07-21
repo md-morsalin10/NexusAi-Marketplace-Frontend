@@ -2,22 +2,25 @@
 import React, { useState } from 'react';
 
 import { motion } from 'framer-motion';
-import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye, } from 'react-icons/hi2';
-import { FaGoogle, FaGithub } from 'react-icons/fa';
+import { HiOutlineMail, HiOutlineLockClosed, HiOutlineEye } from 'react-icons/hi2';
+import { FaGoogle, FaGithub, FaUserCheck } from 'react-icons/fa';
 import Link from 'next/link';
 import { HiEyeOff, HiOutlineMailOpen } from 'react-icons/hi';
 import { authClient } from '@/lib/auth-client';
 import toast from 'react-hot-toast';
+import { redirect } from 'next/navigation';
 
 const LoginPage = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({ email: '', password: '' });
+    const [loading, setLoading] = useState(false);
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    // ক্রেডেনশিয়াল সাবমিট হ্যান্ডলার
+    const handleLogin = async (email, password) => {
+        setLoading(true);
         const { data, error } = await authClient.signIn.email({
-            email: formData.email,
-            password: formData.password,
+            email,
+            password,
         });
 
         if (data) {
@@ -26,7 +29,19 @@ const LoginPage = () => {
         if (error) {
             toast.error(error.message || "Invalid credentials");
         }
-        console.log("Login Submitting: ", formData);
+        setLoading(false);
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        await handleLogin(formData.email, formData.password);
+    };
+
+    // ডেমো লগইন হ্যান্ডলার
+    const handleDemoLogin = (email, password) => {
+        setFormData({ email, password });
+        handleLogin(email, password);
+        redirect('/')
     };
 
     return (
@@ -44,8 +59,41 @@ const LoginPage = () => {
                             Welcome Back
                         </h2>
                         <p className="text-sm text-gray-400">
-                            Log in to access your Gadget<span className="text-cyan-400">Hub</span> account
+                            Log in to access your Nexus<span className="text-cyan-400">Ai</span> account
                         </p>
+                    </div>
+
+                    {/* ডেমো ক্রেডেনশিয়ালস বাটন সেকশন */}
+                    <div className="mb-6 p-4 rounded-xl bg-cyan-950/20 border border-cyan-500/20">
+                        <p className="text-xs font-semibold text-cyan-400 uppercase tracking-wider mb-2 text-center">
+                            ⚡ Quick Demo Login
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleDemoLogin('buyer@gmail.com', 'Morsalin501921')}
+                                className="py-2 px-1 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs font-medium hover:bg-cyan-500/20 transition-all text-center"
+                            >
+                                Buyer
+                            </button>
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleDemoLogin('morsalin@gmail.com', 'Morsalin501921')}
+                                className="py-2 px-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-medium hover:bg-emerald-500/20 transition-all text-center"
+                            >
+                                Seller
+                            </button>
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleDemoLogin('afsan@gmail.com', 'Morsalin501921')}
+                                className="py-2 px-1 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-300 text-xs font-medium hover:bg-purple-500/20 transition-all text-center"
+                            >
+                                Admin
+                            </button>
+                        </div>
                     </div>
 
                     {/* ফর্ম */}
@@ -70,7 +118,7 @@ const LoginPage = () => {
                             </div>
                         </div>
 
-                        {/* পাসওয়ার্ড ইনপুট */}
+                        {/* পাসওয়ার্ড ইনপুট */}
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
                                 <label className="text-xs font-semibold text-gray-400 tracking-wider uppercase block">
@@ -105,11 +153,12 @@ const LoginPage = () => {
                         {/* সাবমিট বাটন */}
                         <motion.button
                             type="submit"
-                            className="w-full mt-2 py-3 rounded-xl bg-cyan-500 text-[#030712] font-semibold text-sm hover:bg-cyan-400 transition-colors shadow-[0_0_20px_rgba(34,211,238,0.15)] flex items-center justify-center"
+                            disabled={loading}
+                            className="w-full mt-2 py-3 rounded-xl bg-cyan-500 text-[#030712] font-semibold text-sm hover:bg-cyan-400 transition-colors shadow-[0_0_20px_rgba(34,211,238,0.15)] flex items-center justify-center disabled:opacity-50"
                             whileHover={{ scale: 1.01, boxShadow: "0 0 25px rgba(34,211,238,0.3)" }}
                             whileTap={{ scale: 0.99 }}
                         >
-                            Sign In
+                            {loading ? "Signing In..." : "Sign In"}
                         </motion.button>
                     </form>
 

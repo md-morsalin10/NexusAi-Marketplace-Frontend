@@ -24,6 +24,7 @@ import StatusBadge from '@/components/dashboard/StatusBadge';
 const TABS = [
     { id: 'overview', label: 'Overview', icon: HiOutlineHome },
     { id: 'my-products', label: 'My Products', icon: HiOutlineShoppingBag },
+    { id: 'my-sales', label: 'My Sales', icon: HiOutlineClock },
     { id: 'add-product', label: 'Add Product', icon: HiOutlinePlusCircle },
     { id: 'profile', label: 'My Profile', icon: HiOutlineUserCircle },
 ];
@@ -43,6 +44,7 @@ export default function SellerDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [stats, setStats] = useState({ total: 0, published: 0, pending: 0, rejected: 0 });
     const [myProducts, setMyProducts] = useState([]);
+    const [sales, setSales] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Product form
@@ -58,23 +60,30 @@ export default function SellerDashboard() {
     const [profileImgPreview, setProfileImgPreview] = useState(null);
     const [updatingProfile, setUpdatingProfile] = useState(false);
 
-    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const API = process.env.NEXT_PUBLIC_API_URL;
 
     const fetchData = useCallback(async () => {
         if (!user?.id && !user?.email) return;
         setLoading(true);
         try {
-            const res = await fetch(`${API}/api/seller/stats/${encodeURIComponent(user.id || user.email)}`);
-            const data = await res.json();
-            setStats({ total: data.total, published: data.published, pending: data.pending, rejected: data.rejected });
-            setMyProducts(data.products || []);
+            const [statsRes, salesRes] = await Promise.all([
+                fetch(`${API}/api/seller/stats/${encodeURIComponent(user.id || user.email)}`),
+                fetch(`${API}/api/payment?sellerId=${encodeURIComponent(user.id || '')}`)
+            ]);
+            
+            const statsData = await statsRes.json();
+            const salesData = await salesRes.json();
+            
+            setStats({ total: statsData.total, published: statsData.published, pending: statsData.pending, rejected: statsData.rejected });
+            setMyProducts(statsData.products || []);
+            setSales(Array.isArray(salesData) ? salesData : (salesData.payments || []));
         } catch (err) {
             console.error(err);
             toast.error("Failed to load seller data");
         } finally {
             setLoading(false);
         }
-    }, [user?.email]);
+    }, [user?.id, user?.email]);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -433,6 +442,60 @@ export default function SellerDashboard() {
                                                     </div>
                                                 </motion.div>
                                             ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* ─── MY SALES ─── */}
+                            {activeTab === 'my-sales' && (
+                                <div className="space-y-6">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                                        <StatCard label="Total Earnings" value={`$${sales.reduce((acc, s) => acc + Number(s.price || 0), 0).toFixed(2)}`} icon={HiOutlineClock}
+                                            color={{ border: 'border-emerald-950/50', glow: 'bg-emerald-500/5', text: 'text-emerald-400', iconBg: 'bg-emerald-500/10 border-emerald-500/20' }} />
+                                        <StatCard label="Total Items Sold" value={sales.length} icon={HiOutlineShoppingBag}
+                                            color={{ border: 'border-cyan-950/50', glow: 'bg-cyan-500/5', text: 'text-cyan-400', iconBg: 'bg-cyan-500/10 border-cyan-500/20' }} />
+                                    </div>
+                                    
+                                    {sales.length === 0 ? (
+                                        <div className="bg-[#0b0f19]/60 border border-cyan-950/50 rounded-2xl p-16 flex flex-col items-center justify-center">
+                                            <HiOutlineClock className="w-12 h-12 text-cyan-900 mb-3" />
+                                            <p className="text-sm font-bold text-gray-400">No sales yet.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-[#0b0f19]/60 border border-cyan-950/50 rounded-2xl overflow-hidden">
+                                            <table className="w-full text-xs text-left">
+                                                <thead className="bg-cyan-950/20 border-b border-cyan-950/50">
+                                                    <tr>
+                                                        <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Product</th>
+                                                        <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px] hidden sm:table-cell">Buyer</th>
+                                                        <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Price</th>
+                                                        <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Date</th>
+                                                        <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {sales.map((sale, i) => (
+                                                        <tr key={sale._id || i} className="border-b border-cyan-950/20 hover:bg-cyan-950/10 transition-colors">
+                                                            <td className="px-5 py-3">
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="w-9 h-9 rounded-lg overflow-hidden bg-cyan-950/50 flex-shrink-0">
+                                                                        {sale.image ? <img src={sale.image} alt={sale.title} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-cyan-900/30" />}
+                                                                    </div>
+                                                                    <p className="font-bold text-white truncate max-w-[150px]">{sale.title || 'Product'}</p>
+                                                                </div>
+                                                            </td>
+                                                            <td className="px-5 py-3 hidden sm:table-cell">
+                                                                <p className="font-semibold text-gray-300 truncate max-w-[120px]">{sale.buyerName || 'Unknown'}</p>
+                                                                <p className="text-[10px] text-gray-500 truncate max-w-[120px]">{sale.buyerEmail}</p>
+                                                            </td>
+                                                            <td className="px-5 py-3 font-bold text-emerald-400">${Number(sale.price || 0).toFixed(2)}</td>
+                                                            <td className="px-5 py-3 text-gray-400">{sale.createdAt ? new Date(sale.createdAt).toLocaleDateString() : 'N/A'}</td>
+                                                            <td className="px-5 py-3"><StatusBadge status={sale.status || 'completed'} size="xs" /></td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </div>
                                     )}
                                 </div>

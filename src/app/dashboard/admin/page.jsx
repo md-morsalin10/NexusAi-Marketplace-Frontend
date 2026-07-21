@@ -30,6 +30,7 @@ import StatusBadge from '@/components/dashboard/StatusBadge';
 const TABS = [
     { id: 'overview', label: 'Overview', icon: HiOutlineHome },
     { id: 'approval-queue', label: 'Approval Queue', icon: HiOutlineBellAlert },
+    { id: 'transactions', label: 'Transactions', icon: HiOutlineCurrencyDollar },
     { id: 'all-products', label: 'All Products', icon: HiOutlineShoppingBag },
     { id: 'users', label: 'User Management', icon: HiOutlineUsers },
 ];
@@ -47,30 +48,33 @@ export default function AdminDashboard() {
     const [users, setUsers] = useState([]);
     const [allProducts, setAllProducts] = useState([]);
     const [pendingProducts, setPendingProducts] = useState([]);
+    const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [updatingRole, setUpdatingRole] = useState(null);
 
-    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+    const API = process.env.NEXT_PUBLIC_API_URL;
 
     const fetchAll = useCallback(async () => {
         setLoading(true);
         try {
-            const [statsRes, usersRes, allProdsRes, pendingRes, salesRes] = await Promise.all([
+            const [statsRes, usersRes, allProdsRes, pendingRes, salesRes, transactionsRes] = await Promise.all([
                 fetch(`${API}/api/stats`),
                 fetch(`${API}/api/users`),
                 fetch(`${API}/api/products/all`),
                 fetch(`${API}/api/products/pending`),
                 fetch(`${API}/api/sales-stats`),
+                fetch(`${API}/api/payment`)
             ]);
-            const [statsData, usersData, allProdsData, pendingData, salesStatsData] = await Promise.all([
-                statsRes.json(), usersRes.json(), allProdsRes.json(), pendingRes.json(), salesRes.json()
+            const [statsData, usersData, allProdsData, pendingData, salesStatsData, transactionsData] = await Promise.all([
+                statsRes.json(), usersRes.json(), allProdsRes.json(), pendingRes.json(), salesRes.json(), transactionsRes.json()
             ]);
             setStats(statsData);
             setUsers(usersData);
             setAllProducts(allProdsData);
             setPendingProducts(pendingData);
             setSalesData(salesStatsData);
+            setTransactions(Array.isArray(transactionsData) ? transactionsData : (transactionsData.payments || []));
         } catch (err) {
             console.error(err);
             toast.error("Failed to load admin data");
@@ -433,6 +437,53 @@ export default function AdminDashboard() {
                                             ))}
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {/* ─── TRANSACTIONS TAB ─── */}
+                            {activeTab === 'transactions' && (
+                                <div className="space-y-5">
+                                    <div className="bg-[#0b0f19]/60 border border-cyan-950/50 rounded-2xl overflow-hidden">
+                                        <table className="w-full text-xs text-left">
+                                            <thead className="bg-cyan-950/20 border-b border-cyan-950/50">
+                                                <tr>
+                                                    <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Item</th>
+                                                    <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px] hidden sm:table-cell">Buyer</th>
+                                                    <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px] hidden md:table-cell">Seller</th>
+                                                    <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Price</th>
+                                                    <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Date</th>
+                                                    <th className="px-5 py-4 font-extrabold text-gray-500 uppercase tracking-widest text-[10px]">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {transactions.length === 0 ? (
+                                                    <tr><td colSpan={6} className="py-12 text-center text-gray-600 font-semibold">No transactions found</td></tr>
+                                                ) : transactions.map((t, i) => (
+                                                    <tr key={t._id || i} className="border-b border-cyan-950/20 hover:bg-cyan-950/10 transition-colors">
+                                                        <td className="px-5 py-3">
+                                                            <div className="flex items-center gap-3">
+                                                                <div className="w-8 h-8 rounded-md overflow-hidden bg-cyan-950/50 flex-shrink-0">
+                                                                    {t.image ? <img src={t.image} alt={t.title} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-cyan-900/30" />}
+                                                                </div>
+                                                                <p className="font-bold text-white truncate max-w-[120px]">{t.title || 'Product'}</p>
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-5 py-3 hidden sm:table-cell">
+                                                            <p className="font-semibold text-gray-300 truncate max-w-[120px]">{t.buyerName || 'Unknown'}</p>
+                                                            <p className="text-[10px] text-gray-500 truncate max-w-[120px]">{t.buyerEmail}</p>
+                                                        </td>
+                                                        <td className="px-5 py-3 hidden md:table-cell">
+                                                            <p className="font-semibold text-gray-300 truncate max-w-[120px]">{t.sellerName || 'Unknown'}</p>
+                                                            <p className="text-[10px] text-gray-500 truncate max-w-[120px]">{t.sellerEmail}</p>
+                                                        </td>
+                                                        <td className="px-5 py-3 font-bold text-emerald-400">${Number(t.price || 0).toFixed(2)}</td>
+                                                        <td className="px-5 py-3 text-gray-400">{t.createdAt ? new Date(t.createdAt).toLocaleDateString() : 'N/A'}</td>
+                                                        <td className="px-5 py-3"><StatusBadge status={t.status || 'completed'} size="xs" /></td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             )}
 
