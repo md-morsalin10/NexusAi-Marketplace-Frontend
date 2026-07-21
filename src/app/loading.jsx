@@ -12,7 +12,7 @@ export default function GlobalLoading() {
                 {/* Center Icon */}
                 <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
             </div>
-            <p className="mt-6 text-sm font-black tracking-[0.2em] uppercase text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]">
+            <p className="mt-12 text-sm font-black tracking-[0.2em] uppercase text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]">
                 Loading Nexus<span className="text-white">AI</span>
             </p>
         </div>
